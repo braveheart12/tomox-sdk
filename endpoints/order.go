@@ -8,11 +8,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
-	"github.com/tomochain/tomodex/errors"
-	"github.com/tomochain/tomodex/interfaces"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils/httputils"
-	"github.com/tomochain/tomodex/ws"
+	"github.com/tomochain/tomoxsdk/errors"
+	"github.com/tomochain/tomoxsdk/interfaces"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils/httputils"
+	"github.com/tomochain/tomoxsdk/ws"
 )
 
 type orderEndpoint struct {
@@ -28,6 +28,7 @@ func ServeOrderResource(
 ) {
 	e := &orderEndpoint{orderService, accountService}
 
+	r.HandleFunc("/orders/count", e.handleGetCountOrder).Methods("GET")
 	r.HandleFunc("/orders/history", e.handleGetOrderHistory).Methods("GET")
 	r.HandleFunc("/orders/positions", e.handleGetPositions).Methods("GET")
 	r.HandleFunc("/orders", e.handleGetOrders).Methods("GET")
@@ -35,6 +36,33 @@ func ServeOrderResource(
 	r.HandleFunc("/orders/cancel", e.HandleCancelOrder).Methods("POST")
 
 	ws.RegisterChannel(ws.OrderChannel, e.ws)
+}
+
+func (e *orderEndpoint) handleGetCountOrder(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	addr := v.Get("address")
+
+	if addr == "" {
+		httputils.WriteError(w, http.StatusBadRequest, "address Parameter Missing")
+		return
+	}
+
+	if !common.IsHexAddress(addr) {
+		httputils.WriteError(w, http.StatusBadRequest, "Invalid Address")
+		return
+	}
+
+	a := common.HexToAddress(addr)
+
+	total, err := e.orderService.GetOrderCountByUserAddress(a)
+
+	if err != nil {
+		logger.Error(err)
+		httputils.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	httputils.WriteJSON(w, http.StatusOK, total)
 }
 
 func (e *orderEndpoint) handleGetOrders(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +93,7 @@ func (e *orderEndpoint) handleGetOrders(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		logger.Error(err)
-		httputils.WriteError(w, http.StatusInternalServerError, "")
+		httputils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

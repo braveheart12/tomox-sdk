@@ -6,10 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
-	"github.com/tomochain/tomodex/interfaces"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils/httputils"
-	"github.com/tomochain/tomodex/ws"
+	"github.com/tomochain/tomoxsdk/interfaces"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils/httputils"
+	"github.com/tomochain/tomoxsdk/ws"
 )
 
 type OrderBookEndpoint struct {
@@ -59,7 +59,7 @@ func (e *OrderBookEndpoint) handleGetOrderBook(w http.ResponseWriter, r *http.Re
 	ob, err := e.orderBookService.GetOrderBook(baseTokenAddress, quoteTokenAddress)
 	if err != nil {
 		logger.Error(err)
-		httputils.WriteError(w, http.StatusInternalServerError, "Internal Server Error")
+		httputils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

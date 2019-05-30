@@ -7,53 +7,55 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/globalsign/mgo/bson"
-	"github.com/tomochain/tomodex/errors"
-	"github.com/tomochain/tomodex/interfaces"
-	"github.com/tomochain/tomodex/rabbitmq"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils"
-	"github.com/tomochain/tomodex/utils/math"
-	"github.com/tomochain/tomodex/ws"
+	"github.com/tomochain/tomoxsdk/errors"
+	"github.com/tomochain/tomoxsdk/interfaces"
+	"github.com/tomochain/tomoxsdk/rabbitmq"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils"
+	"github.com/tomochain/tomoxsdk/utils/math"
+	"github.com/tomochain/tomoxsdk/ws"
 )
 
 // OrderService
 type OrderService struct {
 	// tokenDao      interfaces.TokenDao
-	orderDao      interfaces.OrderDao
-	pairDao       interfaces.PairDao
-	accountDao    interfaces.AccountDao
-	tradeDao      interfaces.TradeDao
-	engine        interfaces.Engine
-	validator     interfaces.ValidatorService
-	broker        *rabbitmq.Connection
-	orderChannels map[string]chan *types.WebsocketEvent
+	orderDao        interfaces.OrderDao
+	pairDao         interfaces.PairDao
+	accountDao      interfaces.AccountDao
+	tradeDao        interfaces.TradeDao
+	notificationDao interfaces.NotificationDao
+	engine          interfaces.Engine
+	validator       interfaces.ValidatorService
+	broker          *rabbitmq.Connection
 }
 
 // NewOrderService returns a new instance of orderservice
 func NewOrderService(
-	// tokenDao interfaces.TokenDao,
 	orderDao interfaces.OrderDao,
 	pairDao interfaces.PairDao,
 	accountDao interfaces.AccountDao,
 	tradeDao interfaces.TradeDao,
+	notificationDao interfaces.NotificationDao,
 	engine interfaces.Engine,
 	validator interfaces.ValidatorService,
 	broker *rabbitmq.Connection,
 ) *OrderService {
 
-	orderChannels := make(map[string]chan *types.WebsocketEvent)
-
 	return &OrderService{
-		// tokenDao,
 		orderDao,
 		pairDao,
 		accountDao,
 		tradeDao,
+		notificationDao,
 		engine,
 		validator,
 		broker,
-		orderChannels,
 	}
+}
+
+// GetOrderCountByUserAddress get the total number of orders created by a user
+func (s *OrderService) GetOrderCountByUserAddress(addr common.Address) (int, error) {
+	return s.orderDao.GetOrderCountByUserAddress(addr)
 }
 
 // GetByID fetches the details of an order using order's mongo ID
@@ -202,7 +204,21 @@ func (s *OrderService) HandleEngineResponse(res *types.EngineResponse) error {
 // to the orderbook (but currently not matched)
 func (s *OrderService) handleEngineOrderAdded(res *types.EngineResponse) {
 	o := res.Order
+
+	// Save notification
+	notifications, err := s.notificationDao.Create(&types.Notification{
+		Recipient: o.UserAddress,
+		Message:   fmt.Sprintf("ORDER_ADDED - Order Hash: %s", o.Hash.Hex()),
+		Type:      types.TypeLog,
+		Status:    types.StatusUnread,
+	})
+
+	if err != nil {
+		logger.Error(err)
+	}
+
 	ws.SendOrderMessage("ORDER_ADDED", o.UserAddress, o)
+	ws.SendNotificationMessage("ORDER_ADDED", o.UserAddress, notifications)
 
 	s.broadcastOrderBookUpdate([]*types.Order{o})
 	s.broadcastRawOrderBookUpdate([]*types.Order{o})
@@ -269,10 +285,25 @@ func (s *OrderService) handleEngineOrderMatched(res *types.EngineResponse) {
 }
 
 func (s *OrderService) handleOrderCancelled(res *types.EngineResponse) {
-	ws.SendOrderMessage("ORDER_CANCELLED", res.Order.UserAddress, res.Order)
+	o := res.Order
+
+	// Save notification
+	notifications, err := s.notificationDao.Create(&types.Notification{
+		Recipient: o.UserAddress,
+		Message:   fmt.Sprintf("ORDER_CANCELLED - Order Hash: %s", o.Hash.Hex()),
+		Type:      types.TypeLog,
+		Status:    types.StatusUnread,
+	})
+
+	if err != nil {
+		logger.Error(err)
+	}
+
+	ws.SendOrderMessage("ORDER_CANCELLED", o.UserAddress, o)
+	ws.SendNotificationMessage("ORDER_CANCELLED", o.UserAddress, notifications)
+
 	s.broadcastOrderBookUpdate([]*types.Order{res.Order})
 	s.broadcastRawOrderBookUpdate([]*types.Order{res.Order})
-	return
 }
 
 func (s *OrderService) handleOrdersInvalidated(res *types.EngineResponse) error {

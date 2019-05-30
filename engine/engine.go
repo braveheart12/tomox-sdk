@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/tomochain/tomodex/errors"
-	"github.com/tomochain/tomodex/ethereum"
-	"github.com/tomochain/tomodex/interfaces"
-	"github.com/tomochain/tomodex/rabbitmq"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils"
+	"github.com/tomochain/tomoxsdk/errors"
+	"github.com/tomochain/tomoxsdk/ethereum"
+	"github.com/tomochain/tomoxsdk/interfaces"
+	"github.com/tomochain/tomoxsdk/rabbitmq"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils"
 )
 
 // Engine contains daos required for engine to work
@@ -67,12 +67,6 @@ func (e *Engine) HandleOrders(msg *rabbitmq.Message) error {
 			logger.Error(err)
 			return err
 		}
-	case "ADD_ORDER":
-		err := e.handleAddOrder(msg.Data)
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
 	case "CANCEL_ORDER":
 		err := e.handleCancelOrder(msg.Data)
 		if err != nil {
@@ -93,34 +87,6 @@ func (e *Engine) HandleOrders(msg *rabbitmq.Message) error {
 		}
 	default:
 		logger.Error("Unknown message", msg)
-	}
-
-	return nil
-}
-
-func (e *Engine) handleAddOrder(bytes []byte) error {
-	o := &types.Order{}
-	err := json.Unmarshal(bytes, o)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
-	code, err := o.PairCode()
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
-	ob := e.orderbooks[code]
-	if ob == nil {
-		return errors.New("Orderbook error")
-	}
-
-	err = ob.addOrder(o)
-	if err != nil {
-		logger.Error(err)
-		return err
 	}
 
 	return nil

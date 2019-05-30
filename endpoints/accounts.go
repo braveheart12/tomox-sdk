@@ -7,11 +7,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
-	"github.com/tomochain/tomodex/interfaces"
-	"github.com/tomochain/tomodex/middlewares"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils"
-	"github.com/tomochain/tomodex/utils/httputils"
+	"github.com/tomochain/tomoxsdk/interfaces"
+	"github.com/tomochain/tomoxsdk/middlewares"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils"
+	"github.com/tomochain/tomoxsdk/utils/httputils"
 )
 
 type AccountEndpoint struct {
@@ -66,7 +66,7 @@ func (e *AccountEndpoint) handleCreateAccount(w http.ResponseWriter, r *http.Req
 	existingAccount, err := e.AccountService.GetByAddress(a)
 	if err != nil {
 		logger.Error(err)
-		httputils.WriteError(w, http.StatusInternalServerError, "")
+		httputils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -79,7 +79,7 @@ func (e *AccountEndpoint) handleCreateAccount(w http.ResponseWriter, r *http.Req
 	err = e.AccountService.Create(acc)
 	if err != nil {
 		logger.Error(err)
-		httputils.WriteError(w, http.StatusInternalServerError, "")
+		httputils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

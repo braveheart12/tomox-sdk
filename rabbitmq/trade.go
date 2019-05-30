@@ -3,7 +3,7 @@ package rabbitmq
 import (
 	"encoding/json"
 
-	"github.com/tomochain/tomodex/types"
+	"github.com/tomochain/tomoxsdk/types"
 )
 
 func (c *Connection) SubscribeTrades(fn func(*types.OperatorMessage) error) error {
@@ -41,7 +41,7 @@ func (c *Connection) PublishTrades(matches *types.Matches) error {
 	q := c.GetQueue(ch, "trades")
 
 	msg := &types.OperatorMessage{
-		MessageType: "NEW_ORDER",
+		MessageType: "NEW_TRADE",
 		Matches:     matches,
 	}
 

@@ -7,9 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/tomochain/tomodex/app"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/utils/math"
+	"github.com/tomochain/tomoxsdk/app"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/utils/math"
 )
 
 // OrderDao contains:
@@ -397,6 +397,21 @@ func (dao *OrderDao) UpdateOrderFilledAmounts(hashes []common.Hash, amount []*bi
 	}
 
 	return updatedOrders, nil
+}
+
+// GetOrderCountByUserAddress get the total number of orders created by a user
+// Return an integer and error
+func (dao *OrderDao) GetOrderCountByUserAddress(addr common.Address) (int, error) {
+	q := bson.M{"userAddress": addr.Hex()}
+
+	total, err := db.Count(dao.dbName, dao.collectionName, q)
+
+	if err != nil {
+		logger.Error(err)
+		return 0, err
+	}
+
+	return total, nil
 }
 
 // GetByID function fetches a single document from order collection based on mongoDB ID.

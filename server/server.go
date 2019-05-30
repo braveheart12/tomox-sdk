@@ -9,20 +9,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/tomochain/tomodex/app"
-	"github.com/tomochain/tomodex/contracts"
-	"github.com/tomochain/tomodex/crons"
-	"github.com/tomochain/tomodex/daos"
-	"github.com/tomochain/tomodex/endpoints"
-	"github.com/tomochain/tomodex/engine"
-	"github.com/tomochain/tomodex/errors"
-	"github.com/tomochain/tomodex/ethereum"
-	"github.com/tomochain/tomodex/operator"
-	"github.com/tomochain/tomodex/rabbitmq"
-	"github.com/tomochain/tomodex/services"
-	"github.com/tomochain/tomodex/swap"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/ws"
+	"github.com/tomochain/tomoxsdk/app"
+	"github.com/tomochain/tomoxsdk/contracts"
+	"github.com/tomochain/tomoxsdk/crons"
+	"github.com/tomochain/tomoxsdk/daos"
+	"github.com/tomochain/tomoxsdk/endpoints"
+	"github.com/tomochain/tomoxsdk/engine"
+	"github.com/tomochain/tomoxsdk/errors"
+	"github.com/tomochain/tomoxsdk/ethereum"
+	"github.com/tomochain/tomoxsdk/operator"
+	"github.com/tomochain/tomoxsdk/rabbitmq"
+	"github.com/tomochain/tomoxsdk/services"
+	"github.com/tomochain/tomoxsdk/swap"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/ws"
+)
+
+const (
+	swaggerUIDir = "/swaggerui/"
 )
 
 func Start() {
@@ -78,6 +82,7 @@ func NewRouter(
 	configDao := daos.NewConfigDao()
 	associationDao := daos.NewAssociationDao()
 	priceBoardDao := daos.NewPriceBoardDao()
+	notificationDao := daos.NewNotificationDao()
 
 	// instantiate engine
 	eng := engine.NewEngine(rabbitConn, orderDao, tradeDao, pairDao, provider)
@@ -90,7 +95,7 @@ func NewRouter(
 	tradeService := services.NewTradeService(tradeDao)
 	validatorService := services.NewValidatorService(provider, accountDao, orderDao, pairDao)
 	pairService := services.NewPairService(pairDao, tokenDao, tradeDao, orderDao, eng, provider)
-	orderService := services.NewOrderService(orderDao, pairDao, accountDao, tradeDao, eng, validatorService, rabbitConn)
+	orderService := services.NewOrderService(orderDao, pairDao, accountDao, tradeDao, notificationDao, eng, validatorService, rabbitConn)
 	orderBookService := services.NewOrderBookService(pairDao, tokenDao, orderDao, eng)
 
 	walletService := services.NewWalletService(walletDao)
@@ -106,6 +111,7 @@ func NewRouter(
 	depositService := services.NewDepositService(configDao, associationDao, pairDao, orderDao, swapEngine, eng, rabbitConn)
 	priceBoardService := services.NewPriceBoardService(tokenDao, tradeDao, priceBoardDao)
 	marketsService := services.NewMarketsService(pairDao, orderDao, tradeDao)
+	notificationService := services.NewNotificationService(notificationDao)
 
 	// start cron service
 	cronService := crons.NewCronService(ohlcvService, priceBoardService, pairService)
@@ -151,6 +157,11 @@ func NewRouter(
 	endpoints.ServeDepositResource(r, depositService, walletService, txService)
 	endpoints.ServePriceBoardResource(r, priceBoardService)
 	endpoints.ServeMarketsResource(r, marketsService)
+	endpoints.ServeNotificationResource(r, notificationService)
+
+	// Swagger UI
+	sh := http.StripPrefix(swaggerUIDir, http.FileServer(http.Dir("."+swaggerUIDir)))
+	r.PathPrefix(swaggerUIDir).Handler(sh)
 
 	//initialize rabbitmq subscriptions
 	rabbitConn.SubscribeOrders(eng.HandleOrders)

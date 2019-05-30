@@ -9,12 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	eth "github.com/ethereum/go-ethereum/core/types"
 	"github.com/globalsign/mgo/bson"
-	"github.com/tomochain/tomodex/contracts/contractsinterfaces"
-	"github.com/tomochain/tomodex/rabbitmq"
-	swapBitcoin "github.com/tomochain/tomodex/swap/bitcoin"
-	swapEthereum "github.com/tomochain/tomodex/swap/ethereum"
-	"github.com/tomochain/tomodex/types"
-	"github.com/tomochain/tomodex/ws"
+	"github.com/tomochain/tomoxsdk/contracts/contractsinterfaces"
+	"github.com/tomochain/tomoxsdk/rabbitmq"
+	swapBitcoin "github.com/tomochain/tomoxsdk/swap/bitcoin"
+	swapEthereum "github.com/tomochain/tomoxsdk/swap/ethereum"
+	"github.com/tomochain/tomoxsdk/types"
+	"github.com/tomochain/tomoxsdk/ws"
 )
 
 type OrderDao interface {
@@ -26,6 +26,7 @@ type OrderDao interface {
 	UpdateAllByHash(h common.Hash, o *types.Order) error
 	UpdateByHash(h common.Hash, o *types.Order) error
 	UpsertByHash(h common.Hash, o *types.Order) error
+	GetOrderCountByUserAddress(addr common.Address) (int, error)
 	GetByID(id bson.ObjectId) (*types.Order, error)
 	GetByHash(h common.Hash) (*types.Order, error)
 	GetByHashes(hashes []common.Hash) ([]*types.Order, error)
@@ -146,6 +147,20 @@ type PriceBoardDao interface {
 	GetLatestQuotes() (map[string]float64, error)
 }
 
+type NotificationDao interface {
+	Create(notifications ...*types.Notification) ([]*types.Notification, error)
+	GetAll() ([]types.Notification, error)
+	GetByUserAddress(addr common.Address, limit int, offset int) ([]*types.Notification, error)
+	GetByID(id bson.ObjectId) (*types.Notification, error)
+	FindAndModify(id bson.ObjectId, n *types.Notification) (*types.Notification, error)
+	Update(n *types.Notification) error
+	Upsert(id bson.ObjectId, n *types.Notification) error
+	Delete(notifications ...*types.Notification) error
+	DeleteByIds(ids ...bson.ObjectId) error
+	Aggregate(q []bson.M) ([]*types.Notification, error)
+	Drop()
+}
+
 type Exchange interface {
 	GetAddress() common.Address
 	GetTxCallOptions() *bind.CallOpts
@@ -197,6 +212,7 @@ type EthereumService interface {
 }
 
 type OrderService interface {
+	GetOrderCountByUserAddress(addr common.Address) (int, error)
 	GetByID(id bson.ObjectId) (*types.Order, error)
 	GetByHash(h common.Hash) (*types.Order, error)
 	GetByHashes(hashes []common.Hash) ([]*types.Order, error)
@@ -269,6 +285,14 @@ type MarketsService interface {
 	Subscribe(c *ws.Client)
 	UnsubscribeChannel(c *ws.Client)
 	Unsubscribe(c *ws.Client)
+}
+
+type NotificationService interface {
+	Create(n *types.Notification) ([]*types.Notification, error)
+	GetAll() ([]types.Notification, error)
+	GetByUserAddress(a common.Address, limit int, offset int) ([]*types.Notification, error)
+	GetByID(id bson.ObjectId) (*types.Notification, error)
+	Update(n *types.Notification) (*types.Notification, error)
 }
 
 type TxService interface {
